@@ -25,6 +25,7 @@ static async Task RunAsync()
 
     var temp = Directory.CreateTempSubdirectory("wowboxer-offhand-");
     var children = new List<Process>();
+    bool verified = false;
     try
     {
         var install = temp.CreateSubdirectory("_forever_");
@@ -67,6 +68,7 @@ static async Task RunAsync()
         Check(service.ActiveWindow == null, "the span ends");
         Check(ReadState(selected.Handle) == secondState, "the second window regains its original bounds, style and topmost state");
         Check(ReadState(untouched.Handle) == firstState, "restoring leaves the first window alone");
+        verified = true;
 
         Process LaunchClient(int offset)
         {
@@ -77,16 +79,60 @@ static async Task RunAsync()
     }
     finally
     {
-        foreach (var p in children)
+        try
         {
-            using (p)
+            await CleanUpAsync(children, temp);
+        }
+        catch (Exception e) when (!verified)
+        {
+            // Preserve the placement failure already on its way to the caller.
+            SmokeFailure.Report("Stand-in cleanup also failed", e);
+        }
+    }
+}
+
+static async Task CleanUpAsync(List<Process> children, DirectoryInfo temp)
+{
+    List<Exception> failures = [];
+    foreach (var child in children)
+    {
+        using (child)
+        {
+            try
             {
-                if (!p.HasExited) p.Kill();
-                await p.WaitForExitAsync();
+                if (!child.HasExited && child.CloseMainWindow())
+                    child.WaitForExit(2000);
+                if (!child.HasExited) child.Kill();
+                await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception e)
+            {
+                failures.Add(e);
             }
         }
-        temp.Delete(recursive: true);
     }
+
+    // Windows can briefly hold the executable's image section after the process signals exit.
+    var timer = Stopwatch.StartNew();
+    while (true)
+    {
+        try
+        {
+            temp.Delete(recursive: true);
+            break;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            if (timer.Elapsed >= TimeSpan.FromSeconds(10))
+            {
+                failures.Add(e);
+                break;
+            }
+            await Task.Delay(250);
+        }
+    }
+    if (failures.Count > 0)
+        throw new AggregateException($"Could not fully clean up the stand-ins under {temp.FullName}.", failures);
 }
 
 static Process Start(string file, params string[] arguments)

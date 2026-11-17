@@ -26,6 +26,9 @@ internal static class Program
 
         try
         {
+            // WPF resolves unqualified pack URIs (including the tray icon) against the entry assembly.
+            // Set the host identity before constructing the Application or resolving any WPF resources.
+            Assembly.SetEntryAssembly(typeof(App.Program).Assembly);
             return RunDemo();
         }
         catch (Exception e)
@@ -37,7 +40,6 @@ internal static class Program
 
     private static int RunDemo()
     {
-        Application.ResourceAssembly = typeof(App.App).Assembly;
         var app = new App.App();
         app.InitializeComponent();
         bool passed = false;
