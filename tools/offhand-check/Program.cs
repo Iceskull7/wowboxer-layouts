@@ -1,64 +1,92 @@
 using System.Diagnostics;
+using WoWBoxer.Layouts.Tools;
 using WoWBoxer.Layouts.Core;
 using WoWBoxer.Layouts.Win32;
 
 // Run on a Windows desktop: dotnet run --project tools/offhand-check -c Release.
 // Two stand-ins have the same exe and title. Only the second should span and restore.
-Dpi.EnsurePerMonitorV2();
-var area = Monitors.Primary(MonitorReader.GetMonitors()).WorkArea;
-if (WindowFinder.FindGameWindows().Count != 0)
-    throw new InvalidOperationException("Close the existing WoW clients before running this check.");
-
-var temp = Directory.CreateTempSubdirectory("wowboxer-offhand-");
-var children = new List<Process>();
 try
 {
-    var install = temp.CreateSubdirectory("_forever_");
-    var exe = Path.Combine(install.FullName, "Wow.exe");
-    var compiler = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-        "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe");
-    using var build = Start(compiler, "/nologo", "/target:winexe", "/out:" + exe, Path.Combine(AppContext.BaseDirectory, "FakeWow.cs"));
-    await build.WaitForExitAsync();
-    if (build.ExitCode != 0) throw new InvalidOperationException("Could not compile the stand-in WoW client.");
-
-    var first = LaunchClient(20);
-    var untouched = await WaitForClient(first);
-    var second = LaunchClient(120);
-    var selected = await WaitForClient(second);
-
-    var firstState = ReadState(untouched.Handle);
-    var secondState = ReadState(selected.Handle);
-    var service = new OffhandWindow();
-    // A single test monitor suffices to verify native placement. The layout tests cover monitor selection.
-    await service.ExpandAsync(selected, area);
-    Check(service.ActiveWindow?.Handle == selected.Handle, "the selected handle owns the span");
-    Check(WindowFinder.RectOf(selected.Handle) == area, "the selected window fills the target rectangle");
-    Check(WindowFinder.ClientSizeOf(selected.Handle) == (area.Width, area.Height), "the game area fills the borderless window");
-    Check(ReadState(untouched.Handle) == firstState, "the first window keeps its bounds, style and topmost state");
-
-    await service.RestoreAsync();
-    Check(service.ActiveWindow == null, "the span ends");
-    Check(ReadState(selected.Handle) == secondState, "the second window regains its original bounds, style and topmost state");
-    Check(ReadState(untouched.Handle) == firstState, "restoring leaves the first window alone");
-
-    Process LaunchClient(int offset)
-    {
-        var p = Start(exe, (area.X + offset).ToString(), (area.Y + 40).ToString(), "460", "320", "WoW Forever test");
-        children.Add(p);
-        return p;
-    }
+    await RunAsync();
+    return 0;
 }
-finally
+catch (Exception e)
 {
-    foreach (var p in children)
+    SmokeFailure.Report("Offhand window check", e);
+    return 1;
+}
+
+static async Task RunAsync()
+{
+    Dpi.EnsurePerMonitorV2();
+    var area = Monitors.Primary(MonitorReader.GetMonitors()).WorkArea;
+    if (WindowFinder.FindGameWindows().Count != 0)
+        throw new InvalidOperationException("Close the existing WoW clients before running this check.");
+
+    var temp = Directory.CreateTempSubdirectory("wowboxer-offhand-");
+    var children = new List<Process>();
+    try
     {
-        using (p)
+        var install = temp.CreateSubdirectory("_forever_");
+        var exe = Path.Combine(install.FullName, "Wow.exe");
+        var compiler = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe");
+        var compile = new ProcessStartInfo(compiler) { UseShellExecute = false, RedirectStandardOutput = true };
+        foreach (var arg in new[] { "/nologo", "/target:winexe", "/reference:System.Drawing.dll", "/reference:System.Windows.Forms.dll",
+            "/out:" + exe, Path.Combine(AppContext.BaseDirectory, "FakeWow.cs") }) compile.ArgumentList.Add(arg);
+        using var build = Process.Start(compile) ?? throw new InvalidOperationException("Could not start the .NET Framework compiler.");
+        var diagnostics = await build.StandardOutput.ReadToEndAsync();
+        await build.WaitForExitAsync();
+        if (build.ExitCode != 0) throw new InvalidOperationException($"FakeWow compilation failed ({build.ExitCode}): {diagnostics.Trim()}");
+
+        var first = LaunchClient(20);
+        var untouched = await WaitForClient(first);
+        var second = LaunchClient(120);
+        var selected = await WaitForClient(second);
+
+        Console.WriteLine($"Discovered both fake windows, PIDs {first.Id} and {second.Id}.");
+        var firstState = ReadState(untouched.Handle);
+        var secondState = ReadState(selected.Handle);
+        var service = new OffhandWindow();
+        // A single test monitor suffices to verify native placement. The layout tests cover monitor selection.
+        try
         {
-            if (!p.HasExited) p.Kill();
-            await p.WaitForExitAsync();
+            await service.ExpandAsync(selected, area);
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException($"Expand failed for PID {selected.Pid}: original {secondState}, requested {area}, " +
+                $"after attempt {ReadState(selected.Handle)}, client size {WindowFinder.ClientSizeOf(selected.Handle)}.", error);
+        }
+        Check(service.ActiveWindow?.Handle == selected.Handle, "the selected handle owns the span");
+        Check(WindowFinder.RectOf(selected.Handle) == area, "the selected window fills the target rectangle");
+        Check(WindowFinder.ClientSizeOf(selected.Handle) == (area.Width, area.Height), "the game area fills the borderless window");
+        Check(ReadState(untouched.Handle) == firstState, "the first window keeps its bounds, style and topmost state");
+
+        await service.RestoreAsync();
+        Check(service.ActiveWindow == null, "the span ends");
+        Check(ReadState(selected.Handle) == secondState, "the second window regains its original bounds, style and topmost state");
+        Check(ReadState(untouched.Handle) == firstState, "restoring leaves the first window alone");
+
+        Process LaunchClient(int offset)
+        {
+            var p = Start(exe, (area.X + offset).ToString(), (area.Y + 40).ToString(), "460", "320", "WoW Forever test");
+            children.Add(p);
+            return p;
         }
     }
-    temp.Delete(recursive: true);
+    finally
+    {
+        foreach (var p in children)
+        {
+            using (p)
+            {
+                if (!p.HasExited) p.Kill();
+                await p.WaitForExitAsync();
+            }
+        }
+        temp.Delete(recursive: true);
+    }
 }
 
 static Process Start(string file, params string[] arguments)
@@ -77,7 +105,9 @@ static async Task<WindowInfo> WaitForClient(Process process)
         if (client != null) return client;
         await Task.Delay(100);
     }
-    throw new InvalidOperationException($"No visible stand-in WoW window for PID {process.Id}.");
+    throw new InvalidOperationException(process.HasExited
+        ? $"Stand-in PID {process.Id} exited with code {process.ExitCode} before its window could be found."
+        : $"PID {process.Id} did not produce a visible Forever window within ten seconds.");
 }
 
 static (PixelRect Rect, int Style, bool Topmost) ReadState(nint handle) =>

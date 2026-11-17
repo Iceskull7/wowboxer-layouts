@@ -24,6 +24,19 @@ internal static class Program
             return 2;
         }
 
+        try
+        {
+            return RunDemo();
+        }
+        catch (Exception e)
+        {
+            SmokeFailure.Report("Tray startup check", e);
+            return 1;
+        }
+    }
+
+    private static int RunDemo()
+    {
         Application.ResourceAssembly = typeof(App.App).Assembly;
         var app = new App.App();
         app.InitializeComponent();
@@ -37,7 +50,7 @@ internal static class Program
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine(e);
+                SmokeFailure.Report("Tray behavior check", e);
             }
             finally
             {

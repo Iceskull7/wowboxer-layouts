@@ -156,7 +156,9 @@ public sealed class OffhandWindow
                 (!checkClient || WindowFinder.ClientSizeOf(h) == (bounds.Width, bounds.Height))) return;
             if (Sandbox.Active) break;
         }
-        throw new InvalidOperationException($"The client did not accept {bounds}. Check that WoW uses Windowed display mode.");
+        var actual = WindowFinder.RectOf(h);
+        var client = WindowFinder.ClientSizeOf(h);
+        throw new InvalidOperationException($"The client did not accept {bounds}. The window is {actual} with a {client.Width}x{client.Height} game area. Check that WoW uses Windowed display mode.");
     }
 
     private static InvalidOperationException WindowError(int code) => new(code == 5
