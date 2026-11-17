@@ -20,7 +20,7 @@ var channel = UpdateChannels.Effective(setting, feed);
 var packages = Directory.CreateTempSubdirectory("wbx-channel-check-");
 try
 {
-    var locator = new TestVelopackLocator("WoWBoxer.Layouts", installed, packages.FullName, null, null, null, feed);
+    var locator = new TestVelopackLocator("WoWBoxer.Offhand", installed, packages.FullName, null, null, null, feed);
     var found = await UpdateFinder.FindAsync(channel, locator);
     var offered = found?.Update.TargetFullRelease.Version.ToString() ?? "none";
     Console.WriteLine($"installed {installed} (from '{feed}'), setting {setting ?? "(none)"} -> channel {channel} -> offered: {offered}");

@@ -1,0 +1,92 @@
+name: WoWBoxer Offhand Windows installer
+
+# Build from the published portable ZIP. A packaging branch can add the installer
+# to an existing release without moving the application tag.
+on:
+  push:
+    branches: ['installer/offhand-v*']
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    concurrency:
+      group: installer-${{ inputs.tag || github.ref_name }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Verify the released ZIP and extract the application
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:TAG -replace '^installer/', ''
+          if ($tag -cnotmatch '^offhand-v(\d+\.\d+\.\d+)$') { throw "Invalid fork release tag $tag" }
+          $version = $Matches[1]
+          $zip = "WoWBoxer-Offhand-$version-win-x64.zip"
+          gh release download $tag --repo $env:GITHUB_REPOSITORY -D out/source -p $zip -p SHA256SUMS.txt
+          if ($LASTEXITCODE) { throw "Could not download the release payload for $tag" }
+          $hash = (Get-FileHash "out/source/$zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ((Get-Content out/source/SHA256SUMS.txt) -cnotcontains "$hash  $zip") { throw "Release ZIP checksum mismatch" }
+          Expand-Archive "out/source/$zip" out/app
+          $actual = & ./out/app/wbx.exe version
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $version) { throw "Unexpected application version: $actual" }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "SETUP=WoWBoxer-Offhand-$version-Setup.exe" >> $env:GITHUB_ENV
+
+      - name: Build the per-user installer
+        shell: pwsh
+        run: |
+          dotnet tool install vpk --version 1.2.161 --tool-path out/tools
+          if ($LASTEXITCODE) { throw "Could not install the packaging tool" }
+          ./out/tools/vpk.exe pack --packId WoWBoxer.Offhand --packVersion $env:VERSION --packDir out/app --mainExe WoWBoxer.exe --packTitle "WoWBoxer Offhand" --packAuthors "WoWBoxer Offhand" --icon src/WoWBoxer.Layouts.App/Assets/app.ico --runtime win-x64 --channel win -o out/packages
+          if ($LASTEXITCODE) { throw "Velopack did not produce the installer" }
+          Move-Item out/packages/WoWBoxer.Offhand-win-Setup.exe "out/packages/$env:SETUP"
+          $hash = (Get-FileHash "out/packages/$env:SETUP" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $env:SETUP" | Set-Content "out/packages/$env:SETUP.sha256" -Encoding ascii
+
+      - name: Install, launch and uninstall the packaged application
+        shell: pwsh
+        run: |
+          try { ./tools/smoke-install.ps1 -Setup "out/packages/$env:SETUP" -Version $env:VERSION }
+          catch { Write-Output "::error::$($_.Exception.Message)"; throw }
+
+      - name: Add the verified installer and Windows update feed to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = @("out/packages/$env:SETUP", "out/packages/$env:SETUP.sha256", "out/packages/WoWBoxer.Offhand-$env:VERSION-full.nupkg")
+          # Publish the feed after the package it references. The portable ZIP and its checksum stay available.
+          foreach ($file in $files + 'out/packages/releases.win.json') {
+            if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing $file" }
+          }
+          gh release upload $env:RELEASE_TAG @files --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE) { throw "Could not add the installer assets" }
+          gh release upload $env:RELEASE_TAG out/packages/releases.win.json --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE) { throw "Could not add the Windows update feed" }
+          $notes = (gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json body | ConvertFrom-Json).body
+          if ($LASTEXITCODE) { throw "Could not read the release notes" }
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/download/$env:RELEASE_TAG/$env:SETUP"
+          if (!$notes.Contains($url)) {
+            $notes.TrimEnd() + "`n`n**Windows installation:** [Download Setup]($url), run it and open WoWBoxer Offhand from the Start menu. The ZIP is the portable edition." | Set-Content out/installer-notes.md -Encoding utf8
+            gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --notes-file out/installer-notes.md
+            if ($LASTEXITCODE) { throw "Could not update the release notes" }
+          }

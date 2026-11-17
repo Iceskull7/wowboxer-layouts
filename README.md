@@ -30,11 +30,13 @@ is still your own responsibility. Check Blizzard's current rules for the game yo
 
 ## Install
 
-Download the Windows x64 ZIP from the fork's [latest release](https://github.com/Iceskull7/wowboxer-layouts/releases/latest).
-Extract the whole archive, close any other copy of WoWBoxer and run `WoWBoxer.exe`. The portable release includes
-the .NET runtime. To update, quit the app from the tray and extract the newer release into a fresh folder.
-Each release includes `SHA256SUMS.txt`. You can verify the ZIP in PowerShell with
-`Get-FileHash .\WoWBoxer-Offhand-1.0.0-win-x64.zip -Algorithm SHA256`.
+Download **WoWBoxer-Offhand-1.0.0-Setup.exe** for a normal Windows x64 installation. Close any running
+copy of WoWBoxer, run Setup and open **WoWBoxer Offhand** from the Start menu. Setup includes the .NET
+runtime and installs for your Windows user. To uninstall, use **Settings → Apps → Installed apps**.
+[Windows releases](https://github.com/Iceskull7/wowboxer-layouts/releases/latest)
+
+The portable ZIP is also available. Extract it in full and run `WoWBoxer.exe`. For a portable update, quit
+WoWBoxer from the tray and extract the new ZIP into a fresh folder.
 
 ## Offhand on one WoW client
 
