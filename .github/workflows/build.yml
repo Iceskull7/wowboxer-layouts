@@ -36,6 +36,9 @@ jobs:
       - name: Extend and restore one of two Offhand test windows
         run: dotnet run --project tools/offhand-check -c Release
 
+      - name: Minimize to tray, place a new demo client and restore
+        run: dotnet run --project tools/tray-check -c Release -- --demo
+
       - name: Start-up check (the app opens its main window)
         shell: pwsh
         run: ./tools/smoke-start.ps1 -Exe src/WoWBoxer.Layouts.App/bin/Release/net10.0-windows/WoWBoxer.exe

@@ -48,6 +48,9 @@ jobs:
       - name: Exercise Offhand with two Windows test clients
         run: dotnet run --project tools/offhand-check -c Release
 
+      - name: Minimize to tray, place a new demo client and restore
+        run: dotnet run --project tools/tray-check -c Release -- --demo
+
       - name: Publish self-contained Windows desktop app and CLI
         shell: pwsh
         run: |
