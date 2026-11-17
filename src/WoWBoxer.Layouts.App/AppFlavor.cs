@@ -18,7 +18,7 @@ internal static class AppFlavor
 #endif
 
     /// <summary>The name shown in the title, the tray and the Start menu.</summary>
-    public static string Name => IsDev ? "WoWBoxer Dev" : "WoWBoxer";
+    public static string Name => IsDev ? "WoWBoxer Dev" : "WoWBoxer Offhand";
 
     /// <summary>The folder under %APPDATA%\WoWBoxer and %LOCALAPPDATA%\WoWBoxer ("Layouts" is the normal app's, since 0.1).</summary>
     public static string DataFolder => IsDev ? "Dev" : "Layouts";

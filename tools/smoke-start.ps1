@@ -39,7 +39,7 @@ $title = $null
 while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
     Start-Sleep -Milliseconds 500
     $p.Refresh()
-    if (-not $title) { $title = [SmokeWindows]::Titles($p.Id) | Where-Object { $_ -match '^WoWBoxer( Dev)? \d' } | Select-Object -First 1 }
+    if (-not $title) { $title = [SmokeWindows]::Titles($p.Id) | Where-Object { $_ -match '^WoWBoxer (Offhand|Dev) \d' } | Select-Object -First 1 }
 }
 if ($p.HasExited) { throw "The app exited during start-up (exit code $($p.ExitCode)). See the Application event log." }
 $all = [SmokeWindows]::Titles($p.Id) -join "', '"

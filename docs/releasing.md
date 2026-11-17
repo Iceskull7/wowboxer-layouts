@@ -1,4 +1,8 @@
-# Releasing
+# Releasing WoWBoxer Offhand
+
+Set the fork version in `Directory.Build.props` and add the matching `## Offhand X.Y.Z` entry to `CHANGELOG.md`. Push the tested commit and tag it `offhand-vX.Y.Z`. The fork release workflow tests on Windows and publishes the self-contained Windows x64 ZIP and SHA-256 checksum on the fork’s Releases page. Future releases use the fork’s own version sequence.
+
+## Original WoWBoxer release process (upstream reference)
 
 Releases are built only by GitHub Actions (`.github/workflows/release.yml`) from a pushed tag on a commit that is on
 main. Nobody uploads files by hand. The order of steps and the rules: [release-process.md](release-process.md).

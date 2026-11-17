@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Offhand workspace for one client",
+            "In Settings, select a running WoW client, identify it on screen and choose which two displays it spans. Choose a partial workspace to leave room for your other clients."),
+        ("Use fewer resources in the tray",
+            "Minimize WoWBoxer to keep your layout, Offhand window and hover-to-activate setting active while playing. Double-click the tray icon to reopen it."),
         ("Window swap: no more back and forth",
             "One swap at a time: a swap hotkey pressed while the last swap's windows are still moving waits for them. A client that keeps its own window size is left alone after a few tries, and the status bar says which size it keeps and what to change."),
         ("Sound follows the main window (beta)",
@@ -99,7 +103,7 @@ internal static class WhatsNewWindow
             {
                 new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.png")), Width = 44, Height = 44, HorizontalAlignment = HorizontalAlignment.Center },
                 new TextBlock { Text = "What's new", Style = (Style)res.FindResource("H1"), FontSize = 24, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) },
-                new TextBlock { Text = $"WoWBoxer {version}", Foreground = R("GoldBrush"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) },
+                new TextBlock { Text = $"{AppFlavor.Name} {version}", Foreground = R("GoldBrush"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) },
                 new ContentControl { Style = (Style)res.FindResource("Divider"), Margin = new Thickness(100, 12, 100, 0) },
             },
         };

@@ -1,8 +1,8 @@
-# WoWBoxer
+# WoWBoxer Offhand
 
 Free, open-source (MIT) Windows app for **manual** World of Warcraft multiboxing.
 It opens your WoW clients and places 1–10 game windows (two parties) in a layout you choose, on one monitor or several, and keeps
-them there. Guides, the rules and the downloads are on **[wowboxer.com](https://wowboxer.com/)**.
+them there. This fork adds per-client Offhand window spanning and a low-resource tray mode. It has its own release series starting at 1.0.0.
 
 ![The Setup tab: client count, layout cards, a to-scale map of the monitor and the squad list](docs/screenshots/site/setup-main-side.webp)
 
@@ -30,23 +30,26 @@ is still your own responsibility. Check Blizzard's current rules for the game yo
 
 ## Install
 
-1. Download **[WoWBoxer-Setup.exe](https://github.com/WoW-Multiboxing/wowboxer-layouts/releases/latest/download/WoWBoxer-Setup.exe)**
-   (always the newest version) and run it.
-2. It installs for your Windows user only, so **no admin rights** are needed. If the
-   [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) is missing, Setup downloads and
-   installs it from Microsoft first. That one step shows a Windows permission prompt, because the runtime is shared
-   by all users.
-3. The app updates itself from GitHub Releases (the update installs when you quit the app). You can switch this off
-   in Settings.
+Download the Windows x64 ZIP from the fork's [latest release](https://github.com/Iceskull7/wowboxer-layouts/releases/latest).
+Extract the whole archive, close any other copy of WoWBoxer and run `WoWBoxer.exe`. The portable release includes
+the .NET runtime. To update, quit the app from the tray and extract the newer release into a fresh folder.
+Each release includes `SHA256SUMS.txt`. You can verify the ZIP in PowerShell with
+`Get-FileHash .\WoWBoxer-Offhand-1.0.0-win-x64.zip -Algorithm SHA256`.
 
-Other downloads on the [Releases page](https://github.com/WoW-Multiboxing/wowboxer-layouts/releases):
-`WoWBoxer-Portable.zip` (no install, no auto-update) and `SHA256SUMS.txt` to check your download
-(`Get-FileHash WoWBoxer-Setup.exe -Algorithm SHA256` in PowerShell).
-Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBoxer`.
+## Offhand on one WoW client
 
-> **Windows SmartScreen** may say "Windows protected your PC" because the files are not code-signed yet
-> (we have applied for free signing from SignPath Foundation, see [code signing](docs/code-signing-policy.md)).
-> Click *More info* → *Run anyway*, or check the file against `SHA256SUMS.txt` first.
+Set the main client to **Windowed** in WoW. Open **Settings** in WoWBoxer and find **Offhand**. Pick the running client by its title and process ID, then choose its main display and an adjacent display for the addon. The two displays can be any suitable pair in a larger desktop. Expand the selected window after arranging your clients.
+
+For three clients on two side-by-side displays, give the main client the first display and choose **50%** of the second display for Offhand. In the custom layout, stack the other two clients in the outer half of the second display. On two equal-width displays, this gives Offhand one third of the expanded window. The remaining displays stay available.
+
+Enable the Offhand addon for the main character. In that client, run `/offhand wizard`, choose manual setup and use the Mainhand side and seam shown in WoWBoxer. You can then place your map or other supported panels in the Offhand area. Close the standalone Companion while using this feature so that only WoWBoxer places the game windows. To go back to the previous window size, use the restore control in the Offhand section. After relaunching WoW, select the new running client. [Offhand addon and manual setup](https://github.com/N4UX-GIT/Offhand-DualMonitor#manual-setup-no-companion-app)
+
+## Minimize while playing
+
+Use the minimize button to keep WoWBoxer in the Windows notification area. Low-resource mode is on by default.
+The app refreshes hidden UI less often. Active features such as hover to activate, client placement, Offhand and
+configured hotkeys continue working. Double-click the tray icon to reopen the window. **Quit** exits the app and
+applies your configured exit behavior for hover to activate.
 
 ## Using it
 
@@ -94,7 +97,7 @@ Needs Windows 10/11 and the [.NET 10 SDK](https://dotnet.microsoft.com/download/
 `global.json`).
 
 ```
-git clone https://github.com/WoW-Multiboxing/wowboxer-layouts.git
+git clone https://github.com/Iceskull7/wowboxer-layouts.git
 cd wowboxer-layouts
 dotnet build WoWBoxer.Layouts.slnx
 dotnet test WoWBoxer.Layouts.slnx

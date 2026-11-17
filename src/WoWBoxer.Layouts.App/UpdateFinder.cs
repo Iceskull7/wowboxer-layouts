@@ -12,7 +12,7 @@ namespace WoWBoxer.Layouts.App;
 /// </summary>
 public static class UpdateFinder
 {
-    public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
+    public const string RepoUrl = "https://github.com/Iceskull7/wowboxer-layouts";
 
     /// <param name="channel">"Stable" or "Beta" (see <see cref="UpdateChannels.Effective"/>).</param>
     /// <param name="locator">null = this installed copy; a <see cref="TestVelopackLocator"/> for checks without installing.</param>
