@@ -1,0 +1,140 @@
+using System.Text;
+
+namespace WoWBoxer.Layouts.Core;
+
+/// <summary>The window can still be extended when the selected installation has no Offhand addon.</summary>
+public sealed class OffhandAddonNotInstalledException(string message) : InvalidOperationException(message);
+
+public static class OffhandBridgeStore
+{
+    private const string FileName = "CompanionTopology.lua";
+
+    /// <summary>Publishes to the selected client's addon. Returns false when it already has these exact bytes.</summary>
+    public static bool Write(string gameExe, string lua)
+    {
+        if (string.IsNullOrWhiteSpace(gameExe) || !Path.IsPathFullyQualified(gameExe))
+            throw new InvalidOperationException("Could not determine the selected WoW client's installation folder.");
+        try
+        {
+            if ((File.GetAttributes(gameExe) & FileAttributes.Directory) != 0)
+                throw new InvalidOperationException("The selected client has no game executable path.");
+            var dir = Path.GetDirectoryName(gameExe)!;
+            foreach (var name in new[] { "Interface", "AddOns", "Offhand" })
+            {
+                dir = Path.Combine(dir, name);
+                try { RequireDirectory(dir); }
+                catch (IOException e) when (e is FileNotFoundException or DirectoryNotFoundException)
+                {
+                    throw new OffhandAddonNotInstalledException("Offhand is not installed in Interface/AddOns/Offhand for the selected WoW client.");
+                }
+            }
+
+            if (!SupportsBridge(dir, GameDetection.GameOf(gameExe)))
+                throw new InvalidOperationException("Update or reinstall Offhand for this WoW client. Its manifest must load Core/CompanionTopology.lua with topology schema 1.");
+
+            var core = Path.Combine(dir, "Core");
+            RequireDirectory(core);
+            return Publish(Path.Combine(core, FileName), Encoding.UTF8.GetBytes(lua));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException($"Could not update the selected client's Offhand addon. Check the installation and write access. {e.Message}", e);
+        }
+    }
+
+    private static bool SupportsBridge(string addon, WowGame game)
+    {
+        var manifests = Directory.GetFiles(addon, "Offhand*.toc");
+        string[] flavors = game switch
+        {
+            WowGame.Forever => ["Offhand_Forever.toc", "Offhand_Mainline.toc"],
+            WowGame.Retail => ["Offhand_Mainline.toc"],
+            WowGame.ClassicEra => ["Offhand_Vanilla.toc"],
+            WowGame.Classic or WowGame.Anniversary => ["Offhand_Classic.toc"],
+            _ => [],
+        };
+        foreach (var name in flavors.Append("Offhand.toc"))
+        {
+            var manifest = manifests.FirstOrDefault(p => Path.GetFileName(p).Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (manifest is not null) return LoadsBridge(manifest);
+        }
+        // A custom client may not use a standard Blizzard installation folder.
+        return flavors.Length == 0 && manifests.Any(p =>
+            Path.GetFileName(p).StartsWith("Offhand_", StringComparison.OrdinalIgnoreCase) && LoadsBridge(p));
+    }
+
+    private static bool LoadsBridge(string manifest)
+    {
+        var loads = false;
+        foreach (var line in File.ReadLines(manifest))
+        {
+            var text = line.Trim();
+            if (text.Replace('\\', '/').Equals("Core/" + FileName, StringComparison.OrdinalIgnoreCase)) loads = true;
+            if (text.StartsWith("## X-Offhand-Companion-Protocol:", StringComparison.OrdinalIgnoreCase)
+                && text[(text.IndexOf(':') + 1)..].Trim() != "1") return false;
+            if (text.StartsWith("## X-Offhand-Topology-Schemas:", StringComparison.OrdinalIgnoreCase)
+                && !text[(text.IndexOf(':') + 1)..].Split(',', StringSplitOptions.TrimEntries).Contains("1")) return false;
+        }
+        return loads;
+    }
+
+    private static void RequireDirectory(string path)
+    {
+        var attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.Directory) == 0)
+            throw new InvalidOperationException($"Offhand needs an addon directory in this WoW installation. Check {path}.");
+    }
+
+    private static byte[]? ReadBridge(string path)
+    {
+        try
+        {
+            if ((File.GetAttributes(path) & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+                throw new InvalidOperationException($"Offhand's {FileName} must be a regular file in the installed addon.");
+            return File.ReadAllBytes(path);
+        }
+        catch (FileNotFoundException) { return null; }
+    }
+
+    private static bool RecognizedBridge(byte[] bytes)
+    {
+        var text = Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF');
+        return text.StartsWith("-- Generated by WoWBoxer Offhand.", StringComparison.Ordinal)
+            || text.StartsWith("-- Generated by Offhand Companion.", StringComparison.Ordinal)
+            || text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Where(line => !line.StartsWith("--", StringComparison.Ordinal)).SequenceEqual(["OffhandCompanionTopology = nil"]);
+    }
+
+    private static bool Publish(string path, byte[] next)
+    {
+        var before = ReadBridge(path);
+        if (before is not null)
+        {
+            if (before.AsSpan().SequenceEqual(next)) return false;
+            if (!RecognizedBridge(before))
+                throw new InvalidOperationException($"Offhand's {FileName} contains custom content. Back it up and restore the packaged addon file before applying this layout.");
+        }
+
+        // WoW can load the addon during a /reload. Stage the complete Lua alongside its destination.
+        var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var output = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                output.Write(next);
+                output.Flush(flushToDisk: true);
+            }
+            if (before is null)
+                File.Move(temp, path);   // no overwrite if the addon manager installed its own file meanwhile
+            else
+            {
+                var current = ReadBridge(path);
+                if (current is null || !current.AsSpan().SequenceEqual(before))
+                    throw new InvalidOperationException("The Offhand addon changed during setup. Wait for the update to finish, then apply the layout again.");
+                File.Replace(temp, path, null);
+            }
+            return true;
+        }
+        finally { File.Delete(temp); }
+    }
+}

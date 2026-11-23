@@ -27,7 +27,7 @@ public class OffhandSpanTests
         var all = new[] { Screen(2, -1920, 0), workspace, Main, Screen(3, 0, -1080) };
         Assert.True(OffhandSpan.TryCreate(Main, workspace, all, 50, out var bounds, out var error), error);
         Assert.Equal(new PixelRect(0, 0, 3200, 1080), bounds);
-        Assert.Contains("outside the selected display", OffhandSpan.Calibration(Main, workspace, bounds));
+        Assert.Contains("only the visible part", OffhandSpan.Calibration(Main, workspace, bounds));
     }
 
     [Theory]
@@ -50,12 +50,12 @@ public class OffhandSpanTests
     }
 
     [Fact]
-    public void Requires_two_current_displays_and_a_calibratable_workspace_size()
+    public void Requires_two_current_displays_and_a_valid_workspace_share()
     {
         var workspace = Screen(2, 1920, 0);
         Assert.False(OffhandSpan.TryCreate(Main, Main, [Main], 50, out _, out _));
         Assert.False(OffhandSpan.TryCreate(Main, workspace, [Main], 50, out _, out _));
-        Assert.False(OffhandSpan.TryCreate(Main, workspace, [Main, workspace], 1, out _, out _));
+        Assert.False(OffhandSpan.TryCreate(Main, workspace, [Main, workspace], 0, out _, out _));
         Assert.False(OffhandSpan.TryCreate(Main, workspace, [Main, workspace], 101, out _, out _));
     }
 }

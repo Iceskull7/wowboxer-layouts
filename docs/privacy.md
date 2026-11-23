@@ -42,6 +42,9 @@ contain account names. Uninstalling removes the app. Delete the two `WoWBoxer` f
 - **Writes, only if you use it:** *Auto-fit action bar* sets `uiScale`/`useUiScale` in `Config.wtf` while all
   clients of that install are closed, and keeps a one-time backup `Config.wtf.wowboxer-backup`. Nothing else in the
   file changes.
+- **Offhand workspace.** When you extend a client with the Offhand addon installed, WoWBoxer writes the display layout to
+  `Interface/AddOns/Offhand/Core/CompanionTopology.lua` in that client’s WoW installation. Offhand reads it at login or on `/reload`.
+  Clients sharing the installation share this file. Restoring the window keeps the layout available for the next span.
 - **Changes a Windows setting, only if you switch it on:** *Hover to activate windows* sets Windows' own "Activate a
   window by hovering over it with the mouse", its delay and "bring to front" for your Windows user (stored by Windows
   under `HKCU\Control Panel\Desktop`). Your values from before the first change are kept in `settings.json`

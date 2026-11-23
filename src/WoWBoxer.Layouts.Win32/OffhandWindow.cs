@@ -18,7 +18,17 @@ public sealed class OffhandWindow
     public bool IsManaging(nint handle) =>
         _original is { } s && s.Window.Handle == handle && IsCurrent(s.Window);
 
-    public async Task ExpandAsync(WindowInfo selected, PixelRect target)
+    public Task ExpandAsync(WindowInfo selected, PixelRect target) => ExpandCoreAsync(selected, target, null);
+
+    /// <summary>Expands the chosen client and publishes its verified dimensions. Returns false in demo mode
+    /// or when the selected installation has no Offhand addon, leaving the window expanded.</summary>
+    public Task<bool> ExpandWithAddonAsync(WindowInfo selected, MonitorInfo main, MonitorInfo workspace, PixelRect span)
+    {
+        var lua = OffhandTopology.ToLua(main, workspace, span);
+        return ExpandCoreAsync(selected, span, lua);
+    }
+
+    private async Task<bool> ExpandCoreAsync(WindowInfo selected, PixelRect target, string? lua)
     {
         if (target.Width <= 0 || target.Height <= 0) throw new InvalidOperationException("Choose a non-empty Offhand span.");
         await _gate.WaitAsync().ConfigureAwait(false);
@@ -38,6 +48,15 @@ public sealed class OffhandWindow
                 var (style, exStyle) = WindowChrome.ToBorderless(saved.Style, saved.ExStyle);
                 SetChrome(saved, style, exStyle);
                 await ResizeAsync(saved.Window, target, checkClient: true).ConfigureAwait(false);
+                if (Sandbox.Active) return false;
+                await VerifySpanAsync(saved.Window, target).ConfigureAwait(false);
+                if (lua is null) return false;
+                try
+                {
+                    OffhandBridgeStore.Write(saved.Window.ExePath, lua);
+                    return true;   // Also when an identical topology was already present.
+                }
+                catch (OffhandAddonNotInstalledException) { return false; }
             }
             catch (InvalidOperationException error)
             {
@@ -159,6 +178,23 @@ public sealed class OffhandWindow
         var actual = WindowFinder.RectOf(h);
         var client = WindowFinder.ClientSizeOf(h);
         throw new InvalidOperationException($"The client did not accept {bounds}. The window is {actual} with a {client.Width}x{client.Height} game area. Check that WoW uses Windowed display mode.");
+    }
+
+    // A running client can accept the first WM_SIZE and reapply its own windowed size later.
+    // Observe only: do not fight WoW by sending more resize requests during this interval.
+    private static async Task VerifySpanAsync(WindowInfo window, PixelRect target)
+    {
+        bool previousMismatch = false;
+        for (int sample = 1; sample <= 24; sample++)
+        {
+            await Task.Delay(250).ConfigureAwait(false);
+            RequireCurrent(window);
+            bool matches = WindowFinder.RectOf(window.Handle) == target &&
+                WindowFinder.ClientSizeOf(window.Handle) == (target.Width, target.Height);
+            if (!matches && (previousMismatch || sample == 24))
+                throw new InvalidOperationException("WoW changed the requested span after the resize. Check Windowed mode, then extend the client again.");
+            previousMismatch = !matches;
+        }
     }
 
     private static InvalidOperationException WindowError(int code) => new(code == 5

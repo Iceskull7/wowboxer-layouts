@@ -1,5 +1,10 @@
 # Changelog
 
+## Offhand 1.0.1
+
+- WoWBoxer now supplies the selected client’s window and workspace geometry to the Offhand addon when you expand the window. The measurements use physical pixels and cover partial displays as well as displays on the left, right, above or below. This supports the Companion setup in Offhand v2.1.5-beta.39.
+- After expanding, type `/reload` in the selected client. If you previously calibrated Offhand manually, run `/offhand guide` and choose **Use Companion**.
+
 ## Offhand 1.0.0
 
 - Expand one selected WoW client onto part or all of a neighbouring monitor for the Offhand addon. Select the client and both displays in Settings, then use the displayed seam to calibrate the addon. Other clients keep their WoWBoxer slots.

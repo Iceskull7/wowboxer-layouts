@@ -8,7 +8,7 @@ them there. This fork adds per-client Offhand window spanning and a low-resource
 
 ## What it does, and what it never does
 
-**It only moves, resizes and restyles windows** – and, only if you switch it on, Windows' own hover-to-activate setting.
+WoWBoxer arranges the game windows. When you extend an Offhand client, it also gives the installed addon the display layout it needs to place the map and other panels.
 
 | It does | It never does |
 |---|---|
@@ -30,9 +30,10 @@ is still your own responsibility. Check Blizzard's current rules for the game yo
 
 ## Install
 
-Download **WoWBoxer-Offhand-1.0.0-Setup.exe** for a normal Windows x64 installation. Close any running
+Download **WoWBoxer-Offhand-1.0.1-Setup.exe** from the fork’s latest release for a Windows x64 installation. Close any running
 copy of WoWBoxer, run Setup and open **WoWBoxer Offhand** from the Start menu. Setup includes the .NET
-runtime and installs for your Windows user. To uninstall, use **Settings → Apps → Installed apps**.
+runtime and installs for your Windows user. Installed copies of 1.0.0 can update to 1.0.1 with update checks enabled.
+To uninstall, use **Settings → Apps → Installed apps**.
 [Windows releases](https://github.com/Iceskull7/wowboxer-layouts/releases/latest)
 
 The portable ZIP is also available. Extract it in full and run `WoWBoxer.exe`. For a portable update, quit
@@ -40,11 +41,15 @@ WoWBoxer from the tray and extract the new ZIP into a fresh folder.
 
 ## Offhand on one WoW client
 
-Set the main client to **Windowed** in WoW. Open **Settings** in WoWBoxer and find **Offhand**. Pick the running client by its title and process ID, then choose its main display and an adjacent display for the addon. The two displays can be any suitable pair in a larger desktop. Expand the selected window after arranging your clients.
+1. Install the **Offhand addon** for the WoW installation you play, enable it on your main character, and set that client to **Windowed**. Quit the standalone Offhand Companion if it is running. [Offhand addon](https://github.com/N4UX-GIT/Offhand-DualMonitor)
+2. Arrange your squad in WoWBoxer. Under **Settings → Offhand workspace**, pick the running client by slot, title or process ID. **Identify** shows the ID on that window. Choose the gameplay monitor, an adjacent workspace monitor and the share of that monitor to use. Click **Extend window**.
+3. In the extended client, type `/reload` to load the new display layout. For first-time setup, or if you previously chose **Configure Manually**, open `/offhand guide` and choose **Use Companion**. Follow **Confirm placement** and **Start Calibration** in the guide. You can then place your map in the Offhand workspace.
 
-For three clients on two side-by-side displays, give the main client the first display and choose **50%** of the second display for Offhand. In the custom layout, stack the other two clients in the outer half of the second display. On two equal-width displays, this gives Offhand one third of the expanded window. The remaining displays stay available.
+**Example with three clients and four monitors.** Choose two side-by-side displays. Use the first for gameplay and choose **50%** of the second for Offhand. Stack the other two clients in the outer half of the second display using the custom layout. With equal-width displays, the workspace then occupies one third of the extended window.
 
-Enable the Offhand addon for the main character. In that client, run `/offhand wizard`, choose manual setup and use the Mainhand side and seam shown in WoWBoxer. You can then place your map or other supported panels in the Offhand area. Close the standalone Companion while using this feature so that only WoWBoxer places the game windows. To go back to the previous window size, use the restore control in the Offhand section. After relaunching WoW, select the new running client. [Offhand addon and manual setup](https://github.com/N4UX-GIT/Offhand-DualMonitor#manual-setup-no-companion-app)
+**Which clients see the layout?** WoWBoxer resizes only the selected window. It writes the layout to `Interface/AddOns/Offhand/Core/CompanionTopology.lua` in that client's WoW installation. Every client using that addon folder can read the layout at login or `/reload`. To use Offhand on the main character alone, disable the addon for your other characters in WoW’s AddOns menu. If the addon is absent, **Extend window** still resizes the client.
+
+Choose **Restore window** to return the client to its previous size and position. The addon file keeps the last layout for your next session. After restarting WoW, select the new running client before extending it.
 
 ## Minimize while playing
 

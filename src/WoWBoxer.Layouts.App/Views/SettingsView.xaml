@@ -40,7 +40,7 @@
                 <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0">
                     <StackPanel>
                         <TextBlock Style="{StaticResource H2}" Text="Offhand workspace" />
-                        <TextBlock Style="{StaticResource Explain}" Text="Extend one windowed WoW client for the Offhand addon. Use part of the workspace monitor to leave room for your other clients." />
+                        <TextBlock Style="{StaticResource Explain}" Text="Extend one windowed WoW client. WoWBoxer saves the display layout in its Offhand addon folder. Clients sharing that folder can also load it." />
                         <StackPanel IsEnabled="{Binding CanChooseOffhand}">
                             <TextBlock Text="WoW client" Style="{StaticResource Muted}" Margin="0,12,0,4" />
                             <DockPanel>
@@ -59,7 +59,7 @@
                         </StackPanel>
                         <TextBlock Text="{Binding OffhandPreview}" Style="{StaticResource Muted}" FontSize="12" Margin="0,10,0,0" />
                         <WrapPanel Margin="0,10,0,0">
-                            <Button Content="Extend window" Command="{Binding ExpandOffhandCommand}" AutomationProperties.AutomationId="ExtendOffhand" Margin="0,0,8,4" />
+                            <Button Content="Extend window" ToolTip="Apply this layout, then type /reload in the selected WoW client." Command="{Binding ExpandOffhandCommand}" AutomationProperties.AutomationId="ExtendOffhand" Margin="0,0,8,4" />
                             <Button Content="Restore window" Command="{Binding RestoreOffhandCommand}" AutomationProperties.AutomationId="RestoreOffhand" Margin="0,0,0,4" />
                         </WrapPanel>
                         <TextBlock Text="{Binding OffhandStatus}" TextWrapping="Wrap" FontSize="12" AutomationProperties.Name="Offhand status" />

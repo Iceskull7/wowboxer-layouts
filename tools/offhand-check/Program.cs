@@ -40,19 +40,33 @@ static async Task RunAsync()
         await build.WaitForExitAsync();
         if (build.ExitCode != 0) throw new InvalidOperationException($"FakeWow compilation failed ({build.ExitCode}): {diagnostics.Trim()}");
 
-        var first = LaunchClient(20);
+        var otherInstall = temp.CreateSubdirectory(Path.Combine("other-install", "_forever_"));
+        var otherExe = Path.Combine(otherInstall.FullName, "Wow.exe");
+        File.Copy(exe, otherExe);
+        var otherBridge = InstallTestAddon(otherInstall.FullName);
+        var first = LaunchClient(otherExe, 20);
         var untouched = await WaitForClient(first);
-        var second = LaunchClient(120);
+        var second = LaunchClient(exe, 120);
         var selected = await WaitForClient(second);
 
         Console.WriteLine($"Discovered both fake windows, PIDs {first.Id} and {second.Id}.");
         var firstState = ReadState(untouched.Handle);
         var secondState = ReadState(selected.Handle);
         var service = new OffhandWindow();
-        // A single test monitor suffices to verify native placement. The layout tests cover monitor selection.
+        // Two adjoining monitor fixtures inside the runner's real desktop exercise exact addon geometry.
+        var gameArea = area with { Width = area.Width / 2 };
+        var workspaceArea = new PixelRect(gameArea.Right, area.Y, area.Width - gameArea.Width, area.Height);
+        var gameScreen = new MonitorInfo(1, "CI game", true, gameArea, gameArea);
+        var workspaceScreen = new MonitorInfo(2, "CI workspace", false, workspaceArea, workspaceArea);
+        Task<bool> Extend() => service.ExpandWithAddonAsync(selected, gameScreen, workspaceScreen, area);
+
+        Check(!await Extend(), "a client without the addon can still expand in window-only mode");
+        await service.RestoreAsync();
+        var bridge = InstallTestAddon(install.FullName);
+        var originalBytes = File.ReadAllBytes(bridge);
         try
         {
-            await service.ExpandAsync(selected, area);
+            Check(await Extend(), "the verified span publishes the addon layout");
         }
         catch (InvalidOperationException error)
         {
@@ -64,15 +78,37 @@ static async Task RunAsync()
         Check(WindowFinder.ClientSizeOf(selected.Handle) == (area.Width, area.Height), "the game area fills the borderless window");
         Check(ReadState(untouched.Handle) == firstState, "the first window keeps its bounds, style and topmost state");
 
+        Check(File.ReadAllText(bridge) == OffhandTopology.ToLua(gameScreen, workspaceScreen, area),
+            "the bridge in the selected client's install contains the verified layout");
+        Check(File.ReadAllBytes(otherBridge).SequenceEqual(originalBytes), "the sibling installation's bridge is untouched");
         await service.RestoreAsync();
         Check(service.ActiveWindow == null, "the span ends");
         Check(ReadState(selected.Handle) == secondState, "the second window regains its original bounds, style and topmost state");
         Check(ReadState(untouched.Handle) == firstState, "restoring leaves the first window alone");
+        File.WriteAllBytes(bridge, originalBytes);
+        var pending = Extend();
+        var wait = Stopwatch.StartNew();
+        while (WindowFinder.RectOf(selected.Handle) != area && !pending.IsCompleted && wait.Elapsed < TimeSpan.FromSeconds(2))
+            await Task.Delay(50);
+        Check(WindowFinder.RectOf(selected.Handle) == area, "the test client initially accepts the span");
+        await Task.Delay(650);
+        Check(!pending.IsCompleted, "the span is still being verified");
+        Check(WindowPlacer.TryMove(selected.Handle, secondState.Rect) == 0, "simulate WoW reverting to its own size");
+        await ExpectSpanFailure(pending, "a delayed reset rejects the span");
+        Check(ReadState(selected.Handle) == secondState && service.ActiveWindow == null, "a reset rolls back the selected window");
+        Check(File.ReadAllBytes(bridge).SequenceEqual(originalBytes), "a rejected size never publishes calibration data");
+
+        using (File.Open(bridge, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            await ExpectSpanFailure(Extend(), "a locked addon bridge rejects the span");
+        Check(ReadState(selected.Handle) == secondState && service.ActiveWindow == null, "a bridge error restores the selected window");
+        Check(File.ReadAllBytes(bridge).SequenceEqual(originalBytes), "a failed write keeps the previous bridge");
+        Check(ReadState(untouched.Handle) == firstState && File.ReadAllBytes(otherBridge).SequenceEqual(originalBytes),
+            "neither failure touches the sibling window or addon");
         verified = true;
 
-        Process LaunchClient(int offset)
+        Process LaunchClient(string executable, int offset)
         {
-            var p = Start(exe, (area.X + offset).ToString(), (area.Y + 40).ToString(), "460", "320", "WoW Forever test");
+            var p = Start(executable, (area.X + offset).ToString(), (area.Y + 40).ToString(), "460", "320", "WoW Forever test");
             children.Add(p);
             return p;
         }
@@ -89,6 +125,27 @@ static async Task RunAsync()
             SmokeFailure.Report("Stand-in cleanup also failed", e);
         }
     }
+}
+
+static string InstallTestAddon(string install)
+{
+    var addon = Path.Combine(install, "Interface", "AddOns", "Offhand");
+    Directory.CreateDirectory(Path.Combine(addon, "Core"));
+    File.WriteAllText(Path.Combine(addon, "Offhand.toc"), @"Core\CompanionTopology.lua");
+    var bridge = Path.Combine(addon, "Core", "CompanionTopology.lua");
+    File.WriteAllText(bridge, "OffhandCompanionTopology = nil\n");
+    return bridge;
+}
+
+static async Task ExpectSpanFailure(Task<bool> attempt, string description)
+{
+    try { await attempt; }
+    catch (InvalidOperationException e)
+    {
+        Console.WriteLine($"PASS  {description}: {e.Message}");
+        return;
+    }
+    throw new InvalidOperationException($"Expected the span to fail: {description}");
 }
 
 static async Task CleanUpAsync(List<Process> children, DirectoryInfo temp)

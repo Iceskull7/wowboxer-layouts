@@ -40,6 +40,33 @@ public class OffhandWindowTests
     }
 
     [Fact]
+    public async Task Demo_spans_never_write_the_addon_bridge()
+    {
+        var temp = Directory.CreateTempSubdirectory("offhand-demo-");
+        try
+        {
+            var exe = Path.Combine(temp.FullName, "Wow.exe");
+            File.WriteAllText(exe, "");
+            var addon = Path.Combine(temp.FullName, "Interface", "AddOns", "Offhand");
+            var core = Directory.CreateDirectory(Path.Combine(addon, "Core"));
+            File.WriteAllText(Path.Combine(addon, "Offhand.toc"), @"Core\CompanionTopology.lua");
+            var bridge = Path.Combine(core.FullName, "CompanionTopology.lua");
+            File.WriteAllText(bridge, "OffhandCompanionTopology = nil");
+
+            var main = new MonitorInfo(1, "Game", true, new(-1920, 0, 1920, 1080), default);
+            var desk = new MonitorInfo(2, "Workspace", false, new(0, 0, 1920, 1080), default);
+            var selected = StartClients()[1] with { ExePath = exe };
+            var service = new OffhandWindow();
+            Assert.False(await service.ExpandWithAddonAsync(selected, main, desk, Span));
+            Assert.Equal(Span, WindowFinder.RectOf(selected.Handle));
+            await service.RestoreAsync();
+            Assert.Equal(selected.Rect, WindowFinder.RectOf(selected.Handle));
+            Assert.Equal("OffhandCompanionTopology = nil", File.ReadAllText(bridge));
+        }
+        finally { temp.Delete(recursive: true); }
+    }
+
+    [Fact]
     public async Task A_reused_handle_and_pid_cannot_inherit_an_old_selection_or_its_restore()
     {
         var old = StartClients()[2];

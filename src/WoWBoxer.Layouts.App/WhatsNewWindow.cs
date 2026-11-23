@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Share the workspace with the Offhand addon",
+            "Expand a client, then type /reload in that client to load its measured workspace. If you used manual calibration, run /offhand guide and choose Use Companion."),
         ("Offhand workspace for one client",
             "In Settings, select a running WoW client, identify it on screen and choose which two displays it spans. Choose a partial workspace to leave room for your other clients."),
         ("Use fewer resources in the tray",

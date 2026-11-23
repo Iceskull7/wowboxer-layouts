@@ -165,8 +165,15 @@ public sealed partial class MainViewModel
                 RefreshMonitors();
                 if (FindOffhandClient() is not { } window) throw new InvalidOperationException("That WoW window has closed. Select a running client.");
                 if (!TryOffhandBounds(out var bounds, out var error)) throw new InvalidOperationException(error);
-                await _offhand.ExpandAsync(window, bounds);
-                OffhandStatus = $"PID {window.Pid} is extended. In this client, run /offhand wizard and choose Configure Manually.";
+                OffhandStatus = $"Extending PID {window.Pid} and checking that WoW keeps the requested size…";
+                bool hasAddon = await _offhand.ExpandWithAddonAsync(window, OffhandMain!.Monitor, OffhandWorkspace!.Monitor, bounds);
+                if (!hasAddon)
+                {
+                    OffhandStatus = $"PID {window.Pid} is extended. To use Offhand, install the addon for this WoW client, restore the window and expand it again.";
+                    Status.Info(OffhandStatus);
+                    return;
+                }
+                OffhandStatus = $"PID {window.Pid} is extended. Type /reload in this client to load the Offhand layout. If you used manual setup, run /offhand geometry auto.";
             }
             Status.Ok(OffhandStatus);
         }

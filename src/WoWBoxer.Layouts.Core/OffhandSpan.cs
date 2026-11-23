@@ -36,11 +36,9 @@ public static class OffhandSpan
         }
 
         int extra = Geometry.Round((horizontal ? desk.Width : desk.Height) * (workspacePercent / 100.0));
-        int gameLength = horizontal ? game.Width : game.Height;
-        double fraction = (double)extra / (gameLength + extra);
-        if (fraction is < 0.1 or > 0.9)
+        if (extra <= 0)
         {
-            error = "Choose another workspace share. The Offhand manual seam accepts 10% to 90% of the combined window.";
+            error = "Choose a larger workspace share.";
             return false;
         }
 
@@ -74,6 +72,6 @@ public static class OffhandSpan
         bool partlyOffscreen = horizontal
             ? bounds.Y < desk.Y || bounds.Bottom > desk.Bottom
             : bounds.X < desk.X || bounds.Right > desk.Right;
-        return partlyOffscreen ? calibration + ". Part of the workspace falls outside the selected display." : calibration;
+        return partlyOffscreen ? calibration + ". The addon uses only the visible part of the extended window." : calibration;
     }
 }

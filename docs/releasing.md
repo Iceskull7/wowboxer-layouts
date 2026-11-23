@@ -1,6 +1,6 @@
 # Releasing WoWBoxer Offhand
 
-Set the fork version in `Directory.Build.props` and add the matching `## Offhand X.Y.Z` entry to `CHANGELOG.md`. Push the tested commit and tag it `offhand-vX.Y.Z`. The fork release workflow tests on Windows and publishes the self-contained Windows x64 ZIP and SHA-256 checksum on the fork’s Releases page. The installer job verifies that ZIP, packages it with Velopack, tests installation and removal, and adds Setup, its checksum and the Windows update feed to the release. To package an existing portable release, push the packaging commit to the branch `installer/offhand-vX.Y.Z`. The application payload comes from the published release.
+Set the fork version in `Directory.Build.props` and add the matching `## Offhand X.Y.Z` entry to `CHANGELOG.md`. Merge the tested commit into the fork’s `main` branch and tag the resulting commit `offhand-vX.Y.Z`. The fork release workflow tests on Windows and publishes the self-contained Windows x64 ZIP and SHA-256 checksum on the fork’s Releases page. The installer job verifies that ZIP, packages it with Velopack, tests installation and removal, and adds Setup, its checksum and the Windows update feed to the release. After publication, the channel checker uses the app’s updater to confirm that a stable 1.0.0 installation is offered the tagged version. To package an existing portable release, push the packaging commit to the branch `installer/offhand-vX.Y.Z`. The application payload comes from the published release.
 
 ## Original WoWBoxer release process (upstream reference)
 
